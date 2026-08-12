@@ -1,0 +1,48 @@
+name: CI
+
+# Found missing entirely in a full-codebase audit -- this repo previously had
+# no CI/CD pipeline of any kind. Deliberately narrow in scope, matching what's
+# actually safe to run with no secrets configured on a shared runner:
+#
+# - The default `pytest` run (`pyproject.toml`'s `addopts = "-m 'not eval'"`)
+#   makes zero real network/LLM calls -- every test here is safe to run on
+#   every push/PR with no API keys, no ShipBob mock credentials, nothing.
+# - `pytest -m eval` (the golden-set real-LLM evals) is deliberately NOT run
+#   here: it costs real money per run and needs a real ANTHROPIC_API_KEY/
+#   OPENAI_API_KEY, which this workflow has no secret configured for. Per
+#   this repo's own README ("no prompt change ships without green evals"),
+#   that's a human-run gate before merging a prompt change, not a CI gate --
+#   wiring it into CI would either need a real committed secret (bad
+#   practice for a shared runner) or silently skip in a way indistinguishable
+#   from a real pass, which is worse than not running it here at all.
+# - ruff runs as a separate, non-blocking-by-convention step (see comment
+#   below) since this codebase predates ruff being introduced -- some
+#   existing style findings (e.g. `Decimal("0")` vs `Decimal(0)`) are the
+#   prior author's deliberate style choice, not bugs; failing CI on those
+#   would be noise, not signal.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (editable, matching Dockerfile/README)
+        run: pip install -e ".[dev]"
+
+      - name: Test (no real network/LLM calls -- see module comment above)
+        run: pytest -q
+
+      - name: Lint (ruff -- informational, not a merge gate; see comment above)
+        run: |
+          pip install ruff
+          ruff check . || true

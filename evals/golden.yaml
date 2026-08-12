@@ -1,0 +1,189 @@
+# Golden-set eval cases for the `pytest -m eval` harness.
+#
+# These 7 cases are the ones the plan's "Known test cases" section names
+# (predates the CASE-9003-REPEAT memory-demo addition, which is
+# deliberately excluded here -- it's a memory-recall demo case, not part of
+# the original golden set).
+#
+# Field semantics:
+#   expected_eligibility: 100% deterministic (pure code, no LLM judgment) --
+#     always pinned exactly. `reason` uses `gates/eligibility.py`'s
+#     `EligibilityReason` codes (TOO_OLD | WRONG_TYPE | INSURED |
+#     MISSING_INFO) or null when eligible with no special routing reason.
+#   expected_evidence: gap COUNT range (min_gaps/max_gaps), since which
+#     specific EvidenceItem category a real vision call reports MISSING vs.
+#     UNUSABLE/LOW_CONFIDENCE is genuine model judgment. Pinned to an exact
+#     count only where fixture attachment counts make it mathematically
+#     forced (see tests/test_pipeline.py's module docstring and per-case
+#     notes below), never to an exact gap list.
+#   expected_validation: "not_reached" for cases whose pipeline path exits
+#     before the validation gate runs at all (ineligible, or an evidence gap
+#     already forced request_info) -- for those, asserting anything about
+#     validation would be meaningless. Otherwise a set of acceptable
+#     ValidationOutcome values (proceed | request_info | escalated) from
+#     `gates/validation.py`.
+#   expected_calc: exact Decimal-parseable amount string when calc runs and
+#     is pinnable; "not_reached" when the pipeline path structurally never
+#     reaches calc (eligibility denial, insured routing, or an evidence gap
+#     with min_gaps>=1 across its whole range -- validation/calc can never
+#     run); "unpinned" when calc *might* run (validation might genuinely
+#     PROCEED) but the resulting amount depends on which SKU(s) the real
+#     model matches, so no exact figure can be pinned -- the eval harness
+#     still asserts a calc result exists whenever validation actually
+#     PROCEEDs, just not its amount. CASE-9002-CAP is the one case whose
+#     amount is deterministic even though it depends on the LLM
+#     naming a SKU: the invoice's declared price ($150) and CAP ($100.00)
+#     are both fixed, so this is pinned exactly.
+#   notes: reasoning/uncertainty behind each choice above.
+
+cases:
+  - case_id: CASE-1001
+    expected_eligibility:
+      eligible: true
+      reason: null
+    expected_evidence:
+      min_gaps: 1
+      max_gaps: 1
+    expected_validation: not_reached
+    expected_calc: not_reached
+    notes: >
+      3 real attachments; the evidence gate requires all 4 EvidenceItem
+      categories, so 3 attachments can never cover 4 distinct categories --
+      exactly one MISSING gap is mathematically forced regardless of which
+      category the real vision call leaves uncovered (confirmed by
+      tests/test_pipeline.py's scripted integration test). One evidence gap
+      routes straight to request_info, so validation/calc are never
+      reached.
+
+  - case_id: CASE-1002
+    expected_eligibility:
+      eligible: true
+      reason: null
+    expected_evidence:
+      min_gaps: 0
+      max_gaps: 1
+    expected_validation:
+      - proceed
+      - request_info
+      - escalated
+    expected_calc: unpinned
+    notes: >
+      4 real attachments, one per category -- the evidence gate can pass
+      cleanly (0 gaps) if the real vision classifier assigns all 4 distinct
+      categories, which is the expected/typical real-model behavior (this
+      is the case tests/test_pipeline.py scripts as the full happy path).
+      Not pinned to exactly 0 because real classification of 4 real photos
+      could in principle miscategorize two photos into the same bucket, or
+      flag one as unusable/low-confidence, leaving exactly one gap -- that
+      is a defensible real judgment call, not a regression, so up to 1 gap
+      is tolerated (not a full 0-4 range, which would make this check
+      meaningless). Once evidence passes, the
+      validation outcome is real vision judgment on real photos -- all
+      three outcomes are left open. `expected_calc` is `unpinned` here (not
+      a fixed amount, but also not `not_reached`): REQUEST_INFO/ESCALATED
+      validation outcomes never reach calc, but if validation genuinely
+      PROCEEDs, calc *does* run, and the eval harness checks that a calc
+      result exists in that case -- it just can't check the exact amount,
+      since that depends on which SKU(s) the real model matches from
+      `matched_skus`.
+
+  - case_id: CASE-1003
+    expected_eligibility:
+      eligible: true
+      reason: null
+    expected_evidence:
+      min_gaps: 2
+      max_gaps: 2
+    expected_validation: not_reached
+    expected_calc: not_reached
+    notes: >
+      CORRECTED 2026-08-11 after a real golden-eval run against the actual
+      OpenAI API caught this entry wrong (see the LLM-usage audit in
+      memory/session history): this was previously pinned to exactly ONE
+      gap on the assumption that 3 attachments always spread across 3
+      distinct EvidenceItem categories, "confirmed" only against a
+      hand-scripted FakeTransport test (tests/test_pipeline.py) that
+      arbitrarily labeled two of the three attachments PRODUCT_PHOTO and
+      PACKAGING_PHOTO. Directly inspecting the real attachments shows
+      neither label is accurate: CASE-1003's 3 real attachments are Inv.png
+      (a genuine invoice screenshot) and TWO screenshots of the SAME
+      customer support-email thread (one about a leaking L-Carnitine
+      bottle, one about a leaking Liquid Glycerol bottle) -- there is no
+      actual product or packaging PHOTO anywhere in this case's evidence.
+      A real GPT-4o run classified them exactly as a careful human would:
+      ORDER_PROOF, CUSTOMER_CONFIRMATION, CUSTOMER_CONFIRMATION -- correctly
+      leaving BOTH PRODUCT_PHOTO and PACKAGING_PHOTO missing (2 gaps, not
+      1). This was the model being *more* accurate than the test suite's
+      own prior expectation, not a hallucination. Still routes to
+      request_info before validation/calc either way -- only the exact gap
+      count changes.
+
+  - case_id: CASE-1004
+    expected_eligibility:
+      eligible: false
+      reason: TOO_OLD
+    expected_evidence: not_reached
+    expected_validation: not_reached
+    expected_calc: not_reached
+    notes: >
+      73 days since delivery vs. the 30-day claim window -- pure date math,
+      zero LLM involvement, deterministic. Eligibility gate denies before
+      any evidence/validation/calc step runs (see
+      tests/test_pipeline.py::test_case_1004_too_old_denies_and_surfaces_already_closed).
+
+  - case_id: CASE-1005
+    expected_eligibility:
+      eligible: true
+      reason: null
+    expected_evidence:
+      min_gaps: 4
+      max_gaps: 4
+    expected_validation: not_reached
+    expected_calc: not_reached
+    notes: >
+      Zero attachments -- no classify_attachment calls happen at all, so all
+      4 EvidenceItem categories are unconditionally MISSING. This is fully
+      forced by the fixture data itself (no vision judgment involved at
+      all), so it is pinned exactly rather than given as a range.
+
+  - case_id: CASE-9001-INSURED
+    expected_eligibility:
+      eligible: true
+      reason: INSURED
+    expected_evidence: not_reached
+    expected_validation: not_reached
+    expected_calc: not_reached
+    notes: >
+      Synthetic case with `Shipment.is_insured=True`. Per
+      gates/eligibility.py, insured routing reports `eligible=True` (not a
+      denial) with `reason="INSURED"` and `route="insured_process"` -- this
+      is the one eligibility outcome where `eligible=True` still
+      short-circuits before evidence/validation/calc (pipeline.py routes it
+      straight to an ESCALATED-state, request_info-labeled exit; see
+      tests/test_pipeline.py::test_case_9001_insured_escalates_not_auto_processed).
+      Fully deterministic, no LLM judgment.
+
+  - case_id: CASE-9002-CAP
+    expected_eligibility:
+      eligible: true
+      reason: null
+    expected_evidence:
+      min_gaps: 0
+      max_gaps: 1
+    expected_validation:
+      - proceed
+      - request_info
+      - escalated
+    expected_calc: "100.00"
+    notes: >
+      Synthetic case with 4 attachments (one per category) and a single
+      invoice line item priced at $150 raw -- the cap ($100.00 by default,
+      settings.cap, env-overridable via CAP) truncates any successful
+      approve to exactly "100.00". This amount is pinned exactly
+      (settings.cap is a fixed policy value for a given deployment, not
+      model judgment) but only actually observed if the real vision
+      pipeline reaches PROCEED and calc runs; the test harness only asserts
+      the exact amount when validation's real outcome is `proceed`, and
+      treats `request_info`/`escalated` as not reaching calc (same
+      reasoning as CASE-1002 for why validation itself isn't pinned to one
+      outcome).

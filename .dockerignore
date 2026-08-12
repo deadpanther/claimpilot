@@ -1,0 +1,27 @@
+# Local dev/build artifacts -- never useful inside the image, and some
+# (`.env`, `claimpilot.db`) would be actively wrong to bake in (a real
+# secret, or stale local demo data, becoming part of a shared image layer).
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.serena/
+.git/
+.gitignore
+
+# Secrets: never baked into the image -- passed at container-run time via
+# `--env-file .env` / docker-compose's `env_file:` instead. See
+# README.md's "Running with Docker" section.
+.env
+
+# Runtime state: created fresh inside the container / restored via a
+# volume mount, never copied in from the host at build time.
+claimpilot.db
+*.db
+*.sqlite3
+outbox/
+fixtures/images/
+
+.DS_Store

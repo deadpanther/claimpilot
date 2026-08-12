@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>claimpilot -- review queue</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem; color: #1a1a1a; }
+    h1 { margin-bottom: 0.25rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #ddd; }
+    th { color: #555; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 0.25rem; font-size: 0.8rem; font-weight: 600; }
+    .badge-LOW { background: #d1f5d3; color: #1a7431; }
+    .badge-ELEVATED { background: #fff3cd; color: #8a6100; }
+    .badge-HIGH { background: #f8d7da; color: #a12530; }
+    .badge-UNKNOWN { background: #e2e2e2; color: #555; }
+    .status-badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 0.25rem; font-weight: 700; letter-spacing: 0.02em; }
+    .status-badge-pending_review { background: #e2e2e2; color: #333; }
+    .status-badge-escalated { background: #a12530; color: #fff; }
+    .empty { color: #777; }
+    .stats-bar { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1rem 0 1.5rem; padding: 0.75rem 1rem; background: #f6f6f8; border-radius: 0.4rem; }
+    .stat { min-width: 8rem; }
+    .stat-label { display: block; font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+    .stat-value { display: block; font-size: 1.25rem; font-weight: 600; }
+    .stats-note { margin: 0 0 1rem; font-size: 0.85rem; color: #555; }
+
+    /* Demo controls -- deliberately set apart from the review UI so nobody
+       mistakes "wipe every case" for a normal rep action. */
+    .demo-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+      margin: 0 0 1.25rem; padding: 0.7rem 1rem;
+      background: #fbfaf5; border: 1px dashed #c9c2a8; border-radius: 0.4rem;
+    }
+    .demo-bar-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #8a7a3d; margin-right: 0.25rem; }
+    .demo-bar form { display: inline; margin: 0; }
+    .demo-bar button { font: inherit; font-size: 0.85rem; padding: 0.35rem 0.85rem; border-radius: 0.3rem; border: 1px solid #b9b09a; background: #fff; cursor: pointer; }
+    .demo-bar button:hover { background: #f3f0e6; }
+    .demo-bar button.danger { border-color: #a12530; color: #a12530; }
+    .demo-bar button.danger:hover { background: #a12530; color: #fff; }
+    .demo-bar-hint { font-size: 0.78rem; color: #8a7a3d; }
+
+    .intake-section { margin: 1.5rem 0; padding: 0.9rem 1.1rem; background: #f4f8fb; border: 1px solid #cfe0ec; border-radius: 0.4rem; }
+    .intake-section h2 { margin: 0 0 0.25rem; font-size: 1rem; }
+    .intake-note { margin: 0 0 0.5rem; font-size: 0.82rem; color: #55707f; }
+    .intake-section table { margin-top: 0.5rem; }
+    .intake-section button { font: inherit; font-size: 0.82rem; padding: 0.25rem 0.7rem; border-radius: 0.3rem; border: 1px solid #2c6c8f; background: #2c6c8f; color: #fff; cursor: pointer; }
+    .intake-section button:hover { background: #245976; }
+    .demo-bar button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .run-banner { margin: 0 0 1.25rem; padding: 0.8rem 1.1rem; background: #eef6fb; border: 1px solid #b9d8ea; border-radius: 0.4rem; font-size: 0.9rem; }
+    .run-banner code { background: #dbeaf4; padding: 0.05rem 0.35rem; border-radius: 0.2rem; }
+    .run-banner-error { background: #fdf1f2; border-color: #e3a1a8; }
+    .run-banner-error ul { margin: 0.4rem 0 0; padding-left: 1.2rem; font-size: 0.85rem; }
+    .run-progress { height: 6px; background: #d3e5f0; border-radius: 3px; margin: 0.6rem 0 0.4rem; overflow: hidden; }
+    .run-progress-fill { height: 100%; background: #2c6c8f; transition: width 0.3s ease; }
+    .run-hint { font-size: 0.78rem; color: #55707f; }
+    .setup-banner {
+      background: #fff3cd; border: 1px solid #e6cf8b; color: #7a5c00;
+      border-radius: 0.4rem; padding: 0.8rem 1.1rem; margin: 0 0 1.1rem; font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .setup-banner code { background: #f6ecc9; padding: 0.05rem 0.35rem; border-radius: 0.2rem; }
+    .holdback-tag { display: inline-block; margin-left: 0.4rem; padding: 0.05rem 0.4rem; border-radius: 0.2rem; background: #fff3cd; color: #8a6100; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  </style>
+</head>
+<body>
+  <h1>Review queue</h1>
+  <p>{{ queue_items|length }} case(s) awaiting review (pending_review + escalated). <a href="/cases/history">View sent/closed cases &rarr;</a></p>
+
+  {% if api_key_missing %}
+  <div class="setup-banner">
+    <strong>No {{ api_key_provider }} API key configured.</strong>
+    Browsing the queue, fetching cases from the ShipBob API and the test suite all work without
+    one, but <em>processing</em> a case makes real {{ api_key_provider }} calls and will fail.
+    Set <code>{{ api_key_env_var }}</code> in your <code>.env</code> file and restart the app.
+  </div>
+  {% endif %}
+
+  {% if demo_controls %}
+  <div class="demo-bar">
+    <span class="demo-bar-label">Demo</span>
+    <form method="post" action="/admin/fetch-cases">
+      <button type="submit"{% if demo_run.running %} disabled{% endif %}>1. Fetch cases</button>
+    </form>
+    <form method="post" action="/admin/process-all">
+      <button type="submit"{% if demo_run.running or not bulk_pending_count %} disabled{% endif %}>
+        2. Process all{% if bulk_pending_count %} ({{ bulk_pending_count }}){% endif %}
+      </button>
+    </form>
+    <form method="post" action="/admin/add-demo-cases">
+      <button type="submit"{% if demo_run.running %} disabled{% endif %}>+ Add demo scenarios ({{ synthetic_total }})</button>
+    </form>
+    <form method="post" action="/admin/reset"
+          onsubmit="return confirm('Delete ALL cases, audit history, actions, memory notes and the outbox?\n\nThis cannot be undone.');">
+      <button type="submit" class="danger"{% if demo_run.running %} disabled{% endif %}>Reset all data</button>
+    </form>
+    <span class="demo-bar-hint">
+      Fetch returns only what ShipBob&rsquo;s API has. Demo scenarios are local test cases for
+      the insured, cap and repeat-merchant paths the real data can&rsquo;t exercise.
+    </span>
+  </div>
+
+  {% if demo_run.running %}
+  {# Poll while a batch is in flight so cases appear as each one finishes.
+     Plain meta-refresh rather than JS polling -- no framework on this page
+     and none needed for a progress bar. #}
+  <meta http-equiv="refresh" content="3">
+  <div class="run-banner">
+    <strong>Processing {{ demo_run.done }} of {{ demo_run.total }}</strong>
+    {% if demo_run.current %}&mdash; currently <code>{{ demo_run.current }}</code>{% endif %}
+    <div class="run-progress">
+      <div class="run-progress-fill" style="width: {{ (demo_run.done / demo_run.total * 100)|round|int if demo_run.total else 0 }}%"></div>
+    </div>
+    <span class="run-hint">This page refreshes itself every 3s. Cases appear below as each finishes.</span>
+  </div>
+  {% elif demo_run.errors %}
+  <div class="run-banner run-banner-error">
+    <strong>Last run finished with {{ demo_run.errors|length }} error(s):</strong>
+    <ul>{% for e in demo_run.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-label">Approve as-is</span>
+      <span class="stat-value">{{ "%.0f%%"|format(stats.approve_as_is_rate * 100) if stats.approve_as_is_rate is not none else "—" }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Edit rate</span>
+      <span class="stat-value">{{ "%.0f%%"|format(stats.edit_rate * 100) if stats.edit_rate is not none else "—" }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Pushback rate</span>
+      <span class="stat-value">{{ "%.0f%%"|format(stats.pushback_rate * 100) if stats.pushback_rate is not none else "—" }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Escalation rate</span>
+      <span class="stat-value">{{ "%.0f%%"|format(stats.escalation_rate * 100) if stats.escalation_rate is not none else "—" }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Mean LLM cost / claim</span>
+      {# 4 decimal places, not 2 -- a single claim's LLM spend is routinely
+         sub-cent (a handful of short structured-output calls), so "$0.00"
+         at 2dp would silently hide the real number on every demo/small
+         dataset. #}
+      <span class="stat-value">{{ "$%.4f"|format(stats.mean_llm_cost_per_claim) if stats.mean_llm_cost_per_claim is not none else "—" }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Mean LLM latency / claim</span>
+      {# Sub-second per-claim latency (common with fast structured-output
+         calls) renders in ms rather than "0.0s", which would be equally
+         uninformative. #}
+      <span class="stat-value">{{ "%.0fms"|format(stats.mean_llm_latency_ms_per_claim) if stats.mean_llm_latency_ms_per_claim is not none and stats.mean_llm_latency_ms_per_claim < 1000 else ("%.1fs"|format(stats.mean_llm_latency_ms_per_claim / 1000) if stats.mean_llm_latency_ms_per_claim is not none else "—") }}</span>
+    </div>
+  </div>
+  <p class="stats-note">Learning is measured -- if approve-as-is rate drops after a policy note lands, the loop is hurting and you can see it.</p>
+
+  {% if queue_items %}
+  <table>
+    <thead>
+      <tr>
+        <th>Case</th>
+        <th>Merchant</th>
+        <th>Status</th>
+        <th>Risk</th>
+        <th>Decision</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in queue_items %}
+      <tr>
+        <td>{{ item.case_id }}</td>
+        <td>{{ item.account_name }}</td>
+        <td><span class="status-badge status-badge-{{ item.status }}">{{ item.status|upper }}</span></td>
+        <td><span class="badge badge-{{ item.risk_tier }}">{{ item.risk_tier }}</span></td>
+        <td>{{ item.decision or "-" }}</td>
+        <td><a href="/cases/{{ item.case_id }}">Review &rarr;</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Nothing waiting on a rep right now.</p>
+  {% endif %}
+
+  {% if intake_items %}
+  <div class="intake-section">
+    <h2>Fetched, not yet processed ({{ intake_items|length }})</h2>
+    <p class="intake-note">
+      Pulled from the ShipBob API but not yet run through the pipeline. Processing makes real
+      LLM calls and takes a few seconds per case.
+      {% if intake_items | selectattr("held_back") | list %}
+      <br><strong>Held back</strong> cases are skipped by &ldquo;Process all&rdquo; on purpose &mdash;
+      process them by hand <em>after</em> a pushback, so a rep&rsquo;s correction has something to
+      carry forward into.
+      {% endif %}
+    </p>
+    <table>
+      <thead>
+        <tr><th>Case</th><th>Merchant</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in intake_items %}
+        <tr>
+          <td>
+            {{ item.case_id }}
+            {% if item.held_back %}<span class="holdback-tag">held back</span>{% endif %}
+          </td>
+          <td>{{ item.account_name }}</td>
+          <td>
+            <form method="post" action="/cases/{{ item.case_id }}/process">
+              <button type="submit">Process &rarr;</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <details>
+    <summary>Policy Notes (memory) ({{ policy_notes|length }})</summary>
+    {% if policy_notes %}
+    <table>
+      <thead>
+        <tr>
+          <th>Scope</th>
+          <th>Content</th>
+          <th>Source case</th>
+          <th>Recorded</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for note in policy_notes %}
+        <tr>
+          <td>
+            {% if note.scope == "global" %}
+              global
+            {% else %}
+              merchant: {{ note.merchant_id }}
+            {% endif %}
+          </td>
+          <td>{{ note.content }}</td>
+          <td>{{ note.source_case_id or "-" }}</td>
+          <td>{{ note.created_at }}</td>
+          <td>
+            <form method="post" action="/memory/notes/{{ note.id }}/delete">
+              <button type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No policy notes recorded yet.</p>
+    {% endif %}
+  </details>
+</body>
+</html>

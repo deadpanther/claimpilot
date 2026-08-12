@@ -1,0 +1,182 @@
+{
+  "cases": [
+    {
+      "case_id": "CASE-9001-INSURED",
+      "case_number": "SYN-9001",
+      "status": "New",
+      "origin": "Case Portal - Claim",
+      "sub_category": "Claim | Damaged in Transit",
+      "description": "Shipment ID: 900001. Customer received order and product arrived damaged. Shipment was purchased with carrier insurance. 1 order affected.",
+      "order_id": "900001",
+      "user_id": "900001",
+      "shipment_id": "900001",
+      "delivered_date": "2026-03-01T00:00:00.000+0000",
+      "contact_email": "synthetic-insured@shipbob.com",
+      "account_name": "Synthetic Insured Co",
+      "created_date": "2026-03-05T00:00:00.000+0000"
+    },
+    {
+      "case_id": "CASE-9002-CAP",
+      "case_number": "SYN-9002",
+      "status": "New",
+      "origin": "Case Portal - Claim",
+      "sub_category": "Claim | Damaged in Transit",
+      "description": "Shipment ID: 900002. Customer received order and product arrived damaged. Damage due to carrier mishandling. 1 order affected.",
+      "order_id": "900002",
+      "user_id": "900002",
+      "shipment_id": "900002",
+      "delivered_date": "2026-03-02T00:00:00.000+0000",
+      "contact_email": "synthetic-cap@shipbob.com",
+      "account_name": "Synthetic Cap Co",
+      "created_date": "2026-03-06T00:00:00.000+0000"
+    },
+    {
+      "case_id": "CASE-9003-REPEAT",
+      "case_number": "SYN-9003",
+      "status": "New",
+      "origin": "Case Portal - Claim",
+      "sub_category": "Claim | Damaged in Transit",
+      "description": "Shipment ID: 900003. Customer received order and product arrived damaged. Both product and shipping box damaged. Damage due to poor/bad packaging. 1 order affected.",
+      "order_id": "900003",
+      "user_id": "334430",
+      "shipment_id": "900003",
+      "delivered_date": "2026-03-10T00:00:00.000+0000",
+      "contact_email": "sakukreja@shipbob.com",
+      "account_name": "Best Paw Nutrition - Repeat Claim",
+      "created_date": "2026-03-14T00:00:00.000+0000"
+    }
+  ],
+  "shipments": [
+    {
+      "shipment_id": "900001",
+      "order_id": "900001",
+      "carrier": "UPS",
+      "tracking_number": "SYN0000001",
+      "status": "Delivered",
+      "delivered_date": "2026-03-01T00:00:00.000+0000",
+      "is_insured": true
+    },
+    {
+      "shipment_id": "900002",
+      "order_id": "900002",
+      "carrier": "FedEx",
+      "tracking_number": "SYN0000002",
+      "status": "Delivered",
+      "delivered_date": "2026-03-02T00:00:00.000+0000",
+      "is_insured": false
+    },
+    {
+      "shipment_id": "900003",
+      "order_id": "900003",
+      "carrier": "UPS",
+      "tracking_number": "SYN0000003",
+      "status": "Delivered",
+      "delivered_date": "2026-03-10T00:00:00.000+0000",
+      "is_insured": false
+    }
+  ],
+  "orders": [
+    {
+      "order_id": "900001",
+      "shipment_id": "900001",
+      "line_items": [
+        { "product_id": "SYN-P-9001", "name": "Synthetic Insured Item", "sku": "SYN-INS-1", "quantity": 1, "unit_price": 29.99 }
+      ]
+    },
+    {
+      "order_id": "900002",
+      "shipment_id": "900002",
+      "line_items": [
+        { "product_id": "SYN-P-9002", "name": "CleanBoss Multi Surface Cleaner 24oz (12-Pack Case)", "sku": "A00300-CASE12", "quantity": 1, "unit_price": 150.00 }
+      ]
+    },
+    {
+      "order_id": "900003",
+      "shipment_id": "900003",
+      "line_items": [
+        { "product_id": "SYN-P-9003", "name": "Organic Castor Oil Roll-on with Frankincense (3-Pack)", "sku": "HG-FRCAST-KITTEDROLL-3PK", "quantity": 1, "unit_price": 42.00 }
+      ]
+    }
+  ],
+  "invoices": [
+    {
+      "invoice_id": "INV-900001",
+      "shipment_id": "900001",
+      "line_items": [
+        { "product_id": "SYN-P-9001", "name": "Synthetic Insured Item", "sku": "SYN-INS-1", "quantity": 1, "unit_price": 29.99 }
+      ],
+      "generated_at": "2026-03-21T10:00:00.000+0000"
+    },
+    {
+      "invoice_id": "INV-900002",
+      "shipment_id": "900002",
+      "line_items": [
+        { "product_id": "SYN-P-9002", "name": "CleanBoss Multi Surface Cleaner 24oz (12-Pack Case)", "sku": "A00300-CASE12", "quantity": 1, "unit_price": 150.00 }
+      ],
+      "generated_at": "2026-03-21T10:00:00.000+0000"
+    },
+    {
+      "invoice_id": "INV-900003",
+      "shipment_id": "900003",
+      "line_items": [
+        { "product_id": "SYN-P-9003", "name": "Organic Castor Oil Roll-on with Frankincense (3-Pack)", "sku": "HG-FRCAST-KITTEDROLL-3PK", "quantity": 1, "unit_price": 42.00 }
+      ],
+      "generated_at": "2026-03-21T10:00:00.000+0000"
+    }
+  ],
+  "attachments": {
+    "CASE-9001-INSURED": [],
+    "CASE-9002-CAP": [
+      {
+        "attachment_id": "ATT-CASE-9002-01",
+        "file_name": "syn-order-proof.jpeg",
+        "content_type": "image/jpeg",
+        "url": "https://sa032101pubdevuc.blob.core.windows.net/shipbob-fde-mock/case-1002/01_IMG_9726-e3f5ae0b-55f9-43d8-bc7b-5fc9c8e.jpeg?se=2036-07-26T20%3A59%3A50Z&sp=r&sv=2021-12-02&sr=b&sig=33T78S7vLBPa%2B5nTpvwMOXhpUDEd%2FiZCIHQWmD8mtkc%3D"
+      },
+      {
+        "attachment_id": "ATT-CASE-9002-02",
+        "file_name": "syn-customer-confirmation.png",
+        "content_type": "image/png",
+        "url": "https://sa032101pubdevuc.blob.core.windows.net/shipbob-fde-mock/case-1002/02_Screenshot_2026-02-26_at_10.14.50%E2%80%AFPM.png?se=2036-07-26T20%3A59%3A50Z&sp=r&sv=2021-12-02&sr=b&sig=X1oNAxyvsQdHU7XXRhxQj7UZoAd0kEUvKolddYYQ%2Fpc%3D"
+      },
+      {
+        "attachment_id": "ATT-CASE-9002-03",
+        "file_name": "syn-product-photo.png",
+        "content_type": "image/png",
+        "url": "https://sa032101pubdevuc.blob.core.windows.net/shipbob-fde-mock/case-1002/03_329233.png?se=2036-07-26T20%3A59%3A50Z&sp=r&sv=2021-12-02&sr=b&sig=ft2BowSGYi%2B9mmBReVORZumjBFtnlI7%2F75kjvp%2FQEEU%3D"
+      },
+      {
+        "attachment_id": "ATT-CASE-9002-04",
+        "file_name": "syn-packaging-photo.jpeg",
+        "content_type": "image/jpeg",
+        "url": "https://sa032101pubdevuc.blob.core.windows.net/shipbob-fde-mock/case-1002/04_IMG_9722-b8ad8406-d79f-40ad-9f54-5dbc663.jpeg?se=2036-07-26T20%3A59%3A50Z&sp=r&sv=2021-12-02&sr=b&sig=tDGDb1tfBHJOOIm4rhbi4RNVhLtzYEJuS8GevnvNyNw%3D"
+      }
+    ],
+    "CASE-9003-REPEAT": [
+      {
+        "attachment_id": "ATT-CASE-9003-01",
+        "file_name": "syn-repeat-order-proof.png",
+        "content_type": "image/png",
+        "url": "https://sa032101pubdevuc.blob.core.windows.net/shipbob-fde-mock/case-1004/01_Screenshot_2026-03-10_025020.png?se=2036-07-26T20%3A59%3A50Z&sp=r&sv=2021-12-02&sr=b&sig=NHXsCaMHJL3J9fTdaNaT7gqpjEY4nZofzLxQPU3qZ8s%3D"
+      },
+      {
+        "attachment_id": "ATT-CASE-9003-02",
+        "file_name": "syn-repeat-customer-confirmation.png",
+        "content_type": "image/png",
+        "url": "https://sa032101pubdevuc.blob.core.windows.net/shipbob-fde-mock/case-1004/02_Screenshot_2026-03-10_024959.png?se=2036-07-26T20%3A59%3A50Z&sp=r&sv=2021-12-02&sr=b&sig=Tm2EU3Gk8gBTpcWnjMqkqwbjsXnhO3oDzJXwjZbsv5k%3D"
+      },
+      {
+        "attachment_id": "ATT-CASE-9003-03",
+        "file_name": "syn-repeat-product-photo.png",
+        "content_type": "image/png",
+        "url": "https://sa032101pubdevuc.blob.core.windows.net/shipbob-fde-mock/case-1004/03_Screenshot_2026-03-10_025032.png?se=2036-07-26T20%3A59%3A50Z&sp=r&sv=2021-12-02&sr=b&sig=a37uSnDWR8YYtaZUdACUVc6g98f06KQEeh3EhThQbnw%3D"
+      },
+      {
+        "attachment_id": "ATT-CASE-9003-04",
+        "file_name": "syn-repeat-packaging-photo.png",
+        "content_type": "image/png",
+        "url": "https://sa032101pubdevuc.blob.core.windows.net/shipbob-fde-mock/case-1004/04_Image_2026-03-10_08-57-31.png.png?se=2036-07-26T20%3A59%3A50Z&sp=r&sv=2021-12-02&sr=b&sig=3drtlv388Renp8tq7YcH0CI%2FeFTdFgzWf3u3YkyYFc4%3D"
+      }
+    ]
+  }
+}

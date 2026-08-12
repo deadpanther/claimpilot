@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>claimpilot -- {{ case_id }}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem auto; max-width: 980px; color: #1a1a1a; line-height: 1.45; }
+    a { color: #0b4a8f; }
+    h1 { margin-bottom: 0.25rem; }
+    h2 { margin: 0 0 0.75rem; font-size: 1.15rem; }
+    h3 { font-size: 0.95rem; color: #444; margin: 1rem 0 0.4rem; }
+
+    /* Card container -- every top-level section/details reads as a distinct,
+       visually separated block instead of one long undifferentiated page. */
+    section, details {
+      background: #fff; border: 1px solid #e4e4e7; border-radius: 0.6rem;
+      padding: 1.1rem 1.4rem; margin-bottom: 1.1rem;
+    }
+    details > summary {
+      cursor: pointer; font-weight: 600; font-size: 1.05rem; list-style: none;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    details > summary::before { content: '\25B8'; display: inline-block; color: #888; transition: transform 0.15s; }
+    details[open] > summary::before { transform: rotate(90deg); }
+    details > summary ~ * { margin-top: 0.9rem; }
+    details[open] { padding-bottom: 1.3rem; }
+
+    .meta-line { color: #555; font-size: 0.92rem; margin: 0.3rem 0 0; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem 1.5rem; margin: 0; padding: 0; }
+    .meta-grid div { margin: 0; }
+    .meta-grid dt { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin: 0; }
+    .meta-grid dd { margin: 0.1rem 0 0; font-size: 0.92rem; }
+
+    .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 0.25rem; font-size: 0.8rem; font-weight: 600; }
+    .badge-LOW { background: #d1f5d3; color: #1a7431; }
+    .badge-ELEVATED { background: #fff3cd; color: #8a6100; }
+    .badge-HIGH { background: #f8d7da; color: #a12530; }
+    .status-badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 0.25rem; font-weight: 700; letter-spacing: 0.02em; }
+    .status-badge-pending_review { background: #e2e2e2; color: #333; }
+    .status-badge-escalated { background: #a12530; color: #fff; }
+    .escalation-banner {
+      background: #f8d7da; color: #7a1c25; border: 1px solid #a12530; border-radius: 0.6rem;
+      padding: 0.8rem 1.1rem; margin-bottom: 1.1rem; font-size: 0.92rem;
+    }
+
+    /* Retail-invoice reconciliation panel. Deliberately loud when it finds
+       something: a payout that disagrees with the merchant's own invoice is
+       the one thing on this page a rep must not scroll past. */
+    .audit-badge { display: inline-block; margin-left: 0.4rem; padding: 0.1rem 0.5rem; border-radius: 0.25rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; vertical-align: middle; }
+    .audit-badge-flag { background: #a12530; color: #fff; }
+    .audit-badge-ok { background: #d1f5d3; color: #1a7431; }
+    .audit-badge-unverified { background: #e2e2e2; color: #555; }
+    .audit-panel[open] { border-left: 4px solid #a12530; }
+    .audit-explainer { font-size: 0.84rem; color: #666; margin: 0.5rem 0 0.9rem; line-height: 1.45; }
+    .audit-findings { list-style: none; padding: 0; margin: 0 0 1rem; }
+    .audit-finding { border-radius: 0.5rem; padding: 0.7rem 0.9rem; margin-bottom: 0.55rem; font-size: 0.9rem; line-height: 1.5; }
+    .audit-finding.audit-escalate { background: #f8d7da; border: 1px solid #e3a1a8; color: #7a1c25; }
+    .audit-finding.audit-warn { background: #fff3cd; border: 1px solid #e6cf8b; color: #7a5c00; }
+    .audit-code { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; margin-right: 0.5rem; opacity: 0.85; }
+    .audit-unverified { background: #f4f4f4; border: 1px solid #ddd; border-radius: 0.5rem; padding: 0.7rem 0.9rem; font-size: 0.9rem; color: #555; margin-bottom: 0.9rem; }
+    .audit-clean { color: #1a7431; font-size: 0.9rem; margin-bottom: 0.9rem; }
+    .audit-subhead { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin: 1rem 0 0.4rem; font-weight: 700; }
+    .audit-discount-row td { font-style: italic; color: #7a5c00; }
+    .audit-note { font-size: 0.84rem; color: #666; font-style: italic; margin-top: 0.5rem; }
+
+    /* Decision summary card -- the single most important thing on the page,
+       so it gets its own prominent, color-accented block right up top. */
+    .summary-card { border-width: 1px; border-left-width: 6px; }
+    .summary-card.decision-approve { border-left-color: #1a7431; }
+    .summary-card.decision-deny { border-left-color: #a12530; }
+    .summary-card.decision-request_info { border-left-color: #8a6100; }
+    .summary-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1.75rem; margin-bottom: 0.25rem; }
+    .summary-item-label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; }
+    .summary-item-value { display: block; font-size: 1.3rem; font-weight: 700; margin-top: 0.1rem; }
+    .decision-pill { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 0.3rem; font-weight: 700; text-transform: uppercase; font-size: 0.95rem; letter-spacing: 0.02em; }
+    .decision-pill-approve { background: #d1f5d3; color: #1a7431; }
+    .decision-pill-deny { background: #f8d7da; color: #a12530; }
+    .decision-pill-request_info { background: #fff3cd; color: #8a6100; }
+
+    .claim-description {
+      background: #fafafa; border-left: 3px solid #ccc; padding: 0.7rem 1rem;
+      border-radius: 0 0.3rem 0.3rem 0; font-size: 0.93rem; white-space: pre-wrap;
+    }
+
+    .thumb { width: 120px; height: 120px; object-fit: cover; margin: 0 0.5rem 0.5rem 0; border: 1px solid #ccc; border-radius: 0.25rem; cursor: zoom-in; transition: opacity 0.15s; }
+    .thumb:hover { opacity: 0.85; }
+    figure { display: inline-block; text-align: center; margin: 0 0.5rem 0.5rem 0; max-width: 130px; }
+    figcaption { font-size: 0.75rem; color: #666; word-break: break-word; }
+    .lightbox-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
+      z-index: 1000; align-items: center; justify-content: center; flex-direction: column;
+    }
+    .lightbox-image { max-width: 85vw; max-height: 80vh; object-fit: contain; border-radius: 0.25rem; }
+    .lightbox-caption { color: #eee; margin-top: 0.75rem; font-size: 0.9rem; }
+    .lightbox-close {
+      position: absolute; top: 1rem; right: 1.5rem; background: none; border: none;
+      color: #fff; font-size: 2.5rem; line-height: 1; cursor: pointer; padding: 0 0.5rem;
+    }
+    .lightbox-nav {
+      position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, 0.15);
+      border: none; color: #fff; font-size: 2.5rem; line-height: 1; cursor: pointer;
+      padding: 0.5rem 1rem; border-radius: 0.25rem; user-select: none;
+    }
+    .lightbox-nav:hover { background: rgba(255, 255, 255, 0.3); }
+    .lightbox-prev { left: 1rem; }
+    .lightbox-next { right: 1rem; }
+    textarea { width: 100%; min-height: 10rem; font-family: inherit; font-size: 0.95rem; box-sizing: border-box; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: 0.3rem 0.6rem; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+    .buttons { margin-top: 0.5rem; }
+    .buttons button { margin-right: 0.5rem; padding: 0.45rem 1rem; cursor: pointer; border-radius: 0.3rem; border: 1px solid #ccc; background: #f6f6f8; font-size: 0.9rem; }
+    .buttons button[value="approve"] { background: #1a7431; color: #fff; border-color: #1a7431; }
+    .empty { color: #777; }
+    pre { white-space: pre-wrap; background: #fafafa; padding: 0.75rem; border-radius: 0.25rem; border: 1px solid #eee; }
+    .email-headers {
+      border: 1px solid #eee; border-bottom: none; border-radius: 0.3rem 0.3rem 0 0;
+      background: #fafafa; padding: 0.6rem 0.9rem; font-size: 0.9rem;
+    }
+    .email-headers div { padding: 0.15rem 0; }
+    .email-header-label { display: inline-block; width: 4.5rem; color: #777; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .email-headers + form textarea { border-radius: 0 0 0.3rem 0.3rem; margin-top: 0; border-top: none; }
+  </style>
+</head>
+<body>
+  <p><a href="/cases">&larr; back to queue</a></p>
+  <h1>{{ case_id }} &mdash; {{ case.account_name or "unknown merchant" }}</h1>
+  <p class="meta-line">
+    Status: <span class="status-badge status-badge-{{ status }}">{{ status|upper }}</span>
+    &nbsp;|&nbsp; Contact: {{ case.contact_email or "(none on file)" }}
+    &nbsp;|&nbsp; Order: {{ case.order_id or "-" }}
+  </p>
+  {% if status == "escalated" %}
+  <p class="escalation-banner">
+    &#9888; This case is <strong>escalated</strong> and needs a human to untangle it before it can be sent --
+    it will not resolve itself by sitting in the queue.
+    {% if escalation_reason %}Reason: {{ escalation_reason }}{% else %}(no specific reason recorded in the audit log for this case){% endif %}
+  </p>
+  {% endif %}
+
+  {% if recommendation %}
+  <section class="summary-card decision-{{ recommendation.decision }}">
+    <div class="summary-row">
+      <div>
+        <span class="summary-item-label">Decision</span>
+        <span class="decision-pill decision-pill-{{ recommendation.decision }}">{{ recommendation.decision|replace("_", " ") }}</span>
+      </div>
+      <div>
+        <span class="summary-item-label">Amount</span>
+        <span class="summary-item-value">${{ "%.2f"|format(recommendation.amount) }}</span>
+      </div>
+      <div>
+        <span class="summary-item-label">Risk</span>
+        <span class="summary-item-value"><span class="badge badge-{{ recommendation.risk_tier }}">{{ recommendation.risk_tier }}</span></span>
+      </div>
+      <div>
+        <span class="summary-item-label">Confidence</span>
+        <span class="summary-item-value">{{ "%.2f"|format(recommendation.confidence) }}</span>
+      </div>
+    </div>
+    <h3>Rationale (gate results, in prose -- see audit timeline below for structured detail)</h3>
+    <pre>{{ recommendation.rationale }}</pre>
+  </section>
+  {% else %}
+  <p class="empty"><em>No recommendation has been generated for this case yet.</em></p>
+  {% endif %}
+
+  <section>
+    <h2>Original claim</h2>
+    <details>
+      <summary>Claim metadata</summary>
+      <dl class="meta-grid">
+        <div><dt>Case #</dt><dd>{{ case.case_number or "-" }}</dd></div>
+        <div><dt>Type</dt><dd>{{ case.sub_category or "-" }}</dd></div>
+        <div><dt>Origin</dt><dd>{{ case.origin or "-" }}</dd></div>
+        <div><dt>Filed</dt><dd>{{ case.created_date or "-" }}</dd></div>
+        <div><dt>Delivered</dt><dd>{{ case.delivered_date or "-" }}</dd></div>
+        <div><dt>Shipment</dt><dd>{{ case.shipment_id or "-" }}</dd></div>
+        <div><dt>Merchant ID</dt><dd>{{ case.user_id or "-" }}</dd></div>
+      </dl>
+    </details>
+    <h3>Merchant's description</h3>
+    {% if case.description %}
+    <p class="claim-description">{{ case.description }}</p>
+    {% else %}
+    <p class="empty">No description provided with this claim.</p>
+    {% endif %}
+  </section>
+
+  {% if recommendation %}
+  <details{% if recommendation.line_items %} open{% endif %}>
+    <summary>
+      Calc breakdown
+      {% if recommendation.line_items %}({{ recommendation.line_items|length }} item(s), ${{ "%.2f"|format(recommendation.amount) }}){% else %}(no line items){% endif %}
+    </summary>
+    {% if recommendation.line_items %}
+    <table>
+      <thead>
+        <tr><th>SKU</th><th>Qty</th><th>Unit price</th><th>Subtotal</th></tr>
+      </thead>
+      <tbody>
+        {% for li in recommendation.line_items %}
+        <tr>
+          <td>{{ li.sku }}</td>
+          <td>{{ li.quantity }}</td>
+          <td>${{ "%.2f"|format(li.unit_price) }}</td>
+          <td>${{ "%.2f"|format(li.subtotal) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No line items on this recommendation.</p>
+    {% endif %}
+  </details>
+  {% endif %}
+
+  {% if invoice_audit %}
+  <details{% if invoice_audit.discrepancies %} open{% endif %} class="audit-panel">
+    <summary>
+      Retail-invoice reconciliation
+      {% if invoice_audit.discrepancies %}
+      <span class="audit-badge audit-badge-flag">{{ invoice_audit.discrepancies|length }} discrepanc{{ "y" if invoice_audit.discrepancies|length == 1 else "ies" }}</span>
+      {% elif invoice_audit.verified %}
+      <span class="audit-badge audit-badge-ok">matches</span>
+      {% else %}
+      <span class="audit-badge audit-badge-unverified">not verified</span>
+      {% endif %}
+    </summary>
+
+    <p class="audit-explainer">
+      The payout above is computed from <strong>ShipBob&rsquo;s</strong> invoice API. This panel
+      independently re-reads the <strong>merchant&rsquo;s own retail invoice</strong> (the
+      order-proof attachment) and compares them. The extracted figures below are read from a
+      customer-supplied document and are shown for review only &mdash; they never adjust the
+      amount.
+    </p>
+
+    {% if not invoice_audit.verified %}
+    <p class="audit-unverified">
+      <strong>Amount not independently verified.</strong>
+      {{ invoice_audit.reason }}
+    </p>
+    {% endif %}
+
+    {% if invoice_audit.discrepancies %}
+    <ul class="audit-findings">
+      {% for d in invoice_audit.discrepancies %}
+      <li class="audit-finding audit-{{ d.severity.value }}">
+        <span class="audit-code">{{ d.code }}</span>
+        <span class="audit-detail">{{ d.detail }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% elif invoice_audit.verified %}
+    <p class="audit-clean">
+      Every damaged line on ShipBob&rsquo;s invoice matches the price on the merchant&rsquo;s
+      retail invoice, in {{ expected_currency }}.
+    </p>
+    {% endif %}
+
+    {% if invoice_audit.extracted and invoice_audit.extracted.line_items %}
+    <h3 class="audit-subhead">
+      Read from the merchant&rsquo;s invoice
+      {% if invoice_audit.extracted.currency %}({{ invoice_audit.extracted.currency }}){% endif %}
+      {% if invoice_audit.extracted.order_reference %}
+      &middot; ref {{ invoice_audit.extracted.order_reference }}
+      {% endif %}
+    </h3>
+    <table>
+      <thead>
+        <tr><th>Description</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr>
+      </thead>
+      <tbody>
+        {% for li in invoice_audit.extracted.line_items %}
+        <tr>
+          <td>{{ li.description }}</td>
+          <td>{{ li.sku or "&mdash;"|safe }}</td>
+          <td>{{ li.quantity }}</td>
+          <td>{% if li.unit_price is not none %}{{ "%.2f"|format(li.unit_price) }}{% else %}&mdash;{% endif %}</td>
+          <td>{% if li.line_total is not none %}{{ "%.2f"|format(li.line_total) }}{% else %}&mdash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+        {% if invoice_audit.extracted.order_discount_total %}
+        <tr class="audit-discount-row">
+          <td colspan="4">Order-level discount</td>
+          <td>&minus;{{ "%.2f"|format(invoice_audit.extracted.order_discount_total) }}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    {% if invoice_audit.extracted.note %}
+    <p class="audit-note">Reader note: {{ invoice_audit.extracted.note }}</p>
+    {% endif %}
+    {% endif %}
+  </details>
+  {% endif %}
+
+  <section>
+    <h2>Evidence</h2>
+    {% if attachments %}
+    <div>
+      {% for att in attachments %}
+      <figure>
+        <img class="thumb" src="/cases/{{ case_id }}/attachments/{{ att.attachment_id }}" alt="{{ att.file_name }}"
+             onclick="openLightbox({{ loop.index0 }})">
+        <figcaption>{{ att.file_name }}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+
+    <div id="lightbox-overlay" class="lightbox-overlay" onclick="if (event.target === this) closeLightbox();">
+      <button type="button" class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
+      <button type="button" class="lightbox-nav lightbox-prev" onclick="showLightboxDelta(-1)" aria-label="Previous attachment">&#8249;</button>
+      <img id="lightbox-image" class="lightbox-image" src="" alt="">
+      <button type="button" class="lightbox-nav lightbox-next" onclick="showLightboxDelta(1)" aria-label="Next attachment">&#8250;</button>
+      <div id="lightbox-caption" class="lightbox-caption"></div>
+    </div>
+
+    <script>
+      const LIGHTBOX_ATTACHMENTS = {{ attachments_json|safe }};
+      let lightboxIndex = 0;
+
+      function renderLightbox() {
+        const att = LIGHTBOX_ATTACHMENTS[lightboxIndex];
+        const img = document.getElementById('lightbox-image');
+        img.src = att.url;
+        img.alt = att.name;
+        document.getElementById('lightbox-caption').textContent =
+          att.name + ' (' + (lightboxIndex + 1) + ' / ' + LIGHTBOX_ATTACHMENTS.length + ')';
+      }
+
+      function openLightbox(index) {
+        lightboxIndex = index;
+        renderLightbox();
+        document.getElementById('lightbox-overlay').style.display = 'flex';
+      }
+
+      function closeLightbox() {
+        document.getElementById('lightbox-overlay').style.display = 'none';
+      }
+
+      function showLightboxDelta(delta) {
+        const n = LIGHTBOX_ATTACHMENTS.length;
+        lightboxIndex = ((lightboxIndex + delta) % n + n) % n;
+        renderLightbox();
+      }
+
+      document.addEventListener('keydown', function (event) {
+        const overlay = document.getElementById('lightbox-overlay');
+        if (overlay.style.display !== 'flex') return;
+        if (event.key === 'Escape') closeLightbox();
+        else if (event.key === 'ArrowLeft') showLightboxDelta(-1);
+        else if (event.key === 'ArrowRight') showLightboxDelta(1);
+      });
+    </script>
+    {% else %}
+    <p class="empty">No evidence attachments on file for this case.</p>
+    {% endif %}
+  </section>
+
+  <details{% if memory_context and (case_policy_notes or memory_context.claim_frequency_90d > 0) %} open{% endif %}>
+    <summary>
+      Merchant memory
+      {% if memory_context %}
+        ({{ case_policy_notes|length }} policy note(s), {{ memory_context.claim_frequency_90d }} claim(s) in last 90 days)
+      {% else %}
+        (no merchant ID on file)
+      {% endif %}
+    </summary>
+    {% if memory_context %}
+    <p>Claim frequency (last 90 days, this merchant, excluding this case): <strong>{{ memory_context.claim_frequency_90d }}</strong></p>
+
+    <h3>Policy notes relevant to this case (merchant-scoped + global)</h3>
+    {% if case_policy_notes %}
+    <table>
+      <thead>
+        <tr><th>Scope</th><th>Content</th><th>Source case</th><th>Recorded</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for note in case_policy_notes %}
+        <tr>
+          <td>
+            {% if note.scope == "global" %}
+              global
+            {% else %}
+              merchant: {{ note.merchant_id }}
+            {% endif %}
+          </td>
+          <td>{{ note.content }}</td>
+          <td>{{ note.source_case_id or "-" }}</td>
+          <td>{{ note.created_at }}</td>
+          <td>
+            <form method="post" action="/memory/notes/{{ note.id }}/delete">
+              <input type="hidden" name="next" value="/cases/{{ case_id }}">
+              <button type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No policy notes recorded for this merchant or globally yet.</p>
+    {% endif %}
+
+    <h3>Recent notes / corrections for this merchant</h3>
+    {% if memory_context.recent_notes %}
+    <ul>
+      {% for note in memory_context.recent_notes %}
+      <li>{{ note }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">No recent notes or corrections recorded for this merchant.</p>
+    {% endif %}
+    {% else %}
+    <p class="empty"><em>{{ no_merchant_id_text }}</em></p>
+    {% endif %}
+  </details>
+
+  <details{% if status == "escalated" %} open{% endif %}>
+    <summary>Audit timeline ({{ audit_events|length }} event(s))</summary>
+    {% if audit_events %}
+    <table>
+      <thead>
+        <tr><th>When</th><th>Actor</th><th>Event</th><th>Detail</th></tr>
+      </thead>
+      <tbody>
+        {% for ev in audit_events %}
+        <tr>
+          <td>{{ ev.ts }}</td>
+          <td>{{ ev.actor }}</td>
+          <td>{{ ev.event }}</td>
+          <td>{{ ev.payload if ev.payload is not none else "-" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No audit events recorded yet.</p>
+    {% endif %}
+  </details>
+
+  {% if recommendation %}
+  <section>
+    <h2>Email draft</h2>
+    <div class="email-headers">
+      <div><span class="email-header-label">To</span> {{ email_to or "(no contact email on file)" }}</div>
+      <div><span class="email-header-label">Subject</span> {{ email_subject }}</div>
+    </div>
+    <form method="post" action="/cases/{{ case_id }}/approve">
+      <textarea name="edited_body">{{ recommendation.email_draft }}</textarea>
+      <div class="buttons">
+        <button type="submit" name="action" value="approve">Approve &amp; Send</button>
+        <button type="submit" name="action" value="save_and_approve">Save Edits &amp; Approve</button>
+      </div>
+    </form>
+  </section>
+
+  <section>
+    <h2>Push back</h2>
+    <form method="post" action="/cases/{{ case_id }}/pushback">
+      <textarea name="feedback" placeholder="What should the drafter change?"></textarea>
+      <div class="buttons">
+        <button type="submit">Push Back</button>
+      </div>
+    </form>
+  </section>
+  {% endif %}
+</body>
+</html>

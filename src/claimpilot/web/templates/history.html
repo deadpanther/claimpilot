@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>claimpilot -- history</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem; color: #1a1a1a; }
+    h1 { margin-bottom: 0.25rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #ddd; }
+    th { color: #555; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .status-badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 0.25rem; font-weight: 700; letter-spacing: 0.02em; }
+    .status-badge-sent { background: #d1e7fd; color: #0b4a8f; }
+    .status-badge-closed { background: #e2e2e2; color: #333; }
+    .status-badge-approved { background: #d1f5d3; color: #1a7431; }
+    .status-badge-denied { background: #f8d7da; color: #a12530; }
+    .status-badge-needs_info { background: #fff3cd; color: #8a6100; }
+    .empty { color: #777; }
+  </style>
+</head>
+<body>
+  <p><a href="/cases">&larr; back to queue</a></p>
+  <h1>Case history</h1>
+  <p>{{ history_items|length }} case(s) that have already left the active queue (sent, denied, or closed), most-recent first.</p>
+
+  {% if history_items %}
+  <table>
+    <thead>
+      <tr>
+        <th>Case</th>
+        <th>Merchant</th>
+        <th>Status</th>
+        <th>Decision</th>
+        <th>Amount</th>
+        <th>Last updated</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in history_items %}
+      <tr>
+        <td>{{ item.case_id }}</td>
+        <td>{{ item.account_name }}</td>
+        <td><span class="status-badge status-badge-{{ item.status }}">{{ item.status|upper }}</span></td>
+        <td>{{ item.decision or "-" }}</td>
+        <td>{{ "$%.2f"|format(item.amount) if item.amount is not none else "-" }}</td>
+        <td>{{ item.updated_at }}</td>
+        <td><a href="/cases/{{ item.case_id }}">View &rarr;</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No cases have been sent, denied, or closed yet.</p>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claimpilot"
+version = "0.1.0"
+description = "Automates damaged-in-transit claim workflow end-to-end with human-in-the-loop review"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "httpx",
+    "anthropic",
+    "openai",
+    "pydantic",
+    "pydantic-settings",
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "respx",
+    "pyyaml",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claimpilot"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "eval: runs the full pipeline against the real LLM API (Anthropic or OpenAI, per settings.llm_provider), excluded from default runs",
+]
+# Marker-based deselection, not skip-based: eval-marked tests are not even
+# collected into the default run's session (see `evals/test_golden.py`'s
+# module docstring). `pytest -m eval` overrides this to select ONLY the
+# eval-marked tests, matching the plan's "pytest -m eval" instruction.
+addopts = "-m 'not eval'"

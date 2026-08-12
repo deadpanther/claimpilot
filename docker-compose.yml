@@ -1,0 +1,30 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      # Not committed (see .gitignore) -- copy .env.example to .env and fill
+      # in real values first. See README.md's "Running with Docker" section.
+      - .env
+    environment:
+      # Redirects the SQLite DB into the volume-backed /app/data directory
+      # below, instead of Settings.db_path's native-run default (the repo
+      # root) -- so `docker compose down && up` / an image rebuild never
+      # silently wipes the review queue. DB_PATH is already a plain
+      # env-overridable Settings field (config.py); no code change needed.
+      - DB_PATH=/app/data/claimpilot.db
+    volumes:
+      # outbox/ and fixtures/images/ have no env-var override (they're
+      # fixed, repo-root-relative paths in clients/fixtures.py and
+      # clients/attachment_guard.py), so they're bind-mounted at their
+      # real container paths directly instead.
+      - claimpilot-data:/app/data
+      - claimpilot-outbox:/app/outbox
+      - claimpilot-attachment-cache:/app/fixtures/images
+    restart: unless-stopped
+
+volumes:
+  claimpilot-data:
+  claimpilot-outbox:
+  claimpilot-attachment-cache:
